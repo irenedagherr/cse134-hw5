@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rating Widget</title>
+   
+</head>
+<body>
+    <h1>Rating Widget</h1>
+
+    <rating-widget>
+        <form action="https://httpbin.org/post" method="POST">
+            <label for="rating">How satisfied are you?</label>
+            <input type="hidden" name="question" value="How satisfied are you?">
+            <input type="hidden" name="sentBy" value="HTML">
+            <input type="number" id="rating" name="rating" min="1" max="5" value="0" required>
+            <button type="submit">Submit</button>
+        </form>
+    </rating-widget>
+
+    <script>
+        class RatingWidget extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+                this._rating = 0;
+                this._showRating = true;
+                this.render();
+
+                const form = this.shadowRoot.querySelector('form');
+                form.addEventListener('submit', this.handleFormSubmit.bind(this));
+            }
+
+            handleFormSubmit(event) {
+                event.preventDefault();
+                const ratingInput = this.shadowRoot.querySelector('#rating');
+                this._rating = ratingInput.value;
+                this.sendRatingToServer();
+            }
+
+            sendRatingToServer() {
+                const formData = new FormData();
+                formData.append('question', 'How satisfied are you?');
+                formData.append('sentBy', 'JS');
+                formData.append('rating', this._rating);
+
+                fetch('https://httpbin.org/post', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Sent-By': 'JS',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server response:', data);
+                    this.displayMessage();
+                })
+                .catch(error => {
+                    console.error('Error sending rating:', error);
+                });
+            }
+
+            handleStarClick(event) {
+                const clickedStar = event.target;
+                const ratingValue = parseInt(clickedStar.getAttribute('data-value'));
+                this._rating = this._rating === ratingValue ? 0 : ratingValue;
+                this._showRating = false;
+                this.render();
+                this.sendRatingToServer();
+            }
+
+            displayMessage() {
+                const maxRating = 5;
+                const percentage = (this._rating / maxRating) * 100;
+
+                let message = '';
+                if (percentage >= 80) {
+                    message = 'Thank you for ' + this._rating + ' star rating!';
+                } else {
+                    message = 'Thank you for your feedback of ' + this._rating + ' stars. We\'ll try to do better!';
+                }
+
+                const messageElement = this.shadowRoot.querySelector('.message');
+                messageElement.textContent = message;
+            }
+
+            handleBackButtonClick() {
+                this._showRating = true;
+                this._rating = 0;
+                this.render();
+            }
+
+
+         
+
+            render() {
+                this.shadowRoot.innerHTML = `
+                    ${this._showRating
+                        ? `
+                            <div class="rating-container" style="display:flex">
+                                ${Array.from({ length: 5 }, (_, index) => `
+                                    <div class="star" data-value="${index + 1}">${index < this._rating ? '&#9733;' : '&#9734;'}</div>
+                                `).join('')}
+                            </div>
+                            <p class="message"></p>
+                        `
+                        : `
+                            <p class="message"></p>
+                        `}
+                    <button id="backButton">Go Back</button>
+                `;
+
+                const stars = this.shadowRoot.querySelectorAll('.star');
+                stars.forEach((star, index) => {
+                    star.addEventListener('click', (event) => this.handleStarClick(event));
+               
+                });
+
+                const backButton = this.shadowRoot.getElementById('backButton');
+                if (backButton) {
+                    backButton.addEventListener('click', this.handleBackButtonClick.bind(this));
+                }
+            }
+        }
+
+        customElements.define('rating-widget', RatingWidget);
+    </script>
+</body>
+</html>
